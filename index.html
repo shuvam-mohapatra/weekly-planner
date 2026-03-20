@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e10;
+    --surface: #16161a;
+    --surface2: #1e1e24;
+    --border: #2a2a35;
+    --accent: #c8ff6a;
+    --accent2: #6af0ff;
+    --accent3: #ff6a9b;
+    --text: #e8e8f0;
+    --text2: #888899;
+    --text3: #555566;
+    --done: #3a5a1a;
+    --done-text: #b0e060;
+    --rollover: #1a3a5a;
+    --rollover-text: #60c0e0;
+    --recurring: #3a1a5a;
+    --recurring-text: #c060e0;
+    --radius: 10px;
+    --font-head: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-mono); min-height: 100vh; padding: 20px; }
+
+  .noise {
+    position: fixed; inset: 0; pointer-events: none; z-index: 999;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.35;
+  }
+
+  /* LOGIN SCREEN */
+  .login-screen {
+    position: fixed; inset: 0; background: var(--bg); z-index: 50;
+    display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 24px;
+  }
+  .login-screen.hidden { display: none; }
+  .login-box {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+    padding: 40px 48px; text-align: center; max-width: 380px; width: 100%;
+  }
+  .login-title { font-family: var(--font-head); font-size: 2rem; font-weight: 800; color: var(--accent); margin-bottom: 8px; }
+  .login-sub { color: var(--text3); font-size: 0.78rem; margin-bottom: 32px; line-height: 1.6; }
+  .google-btn {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    width: 100%; padding: 12px 20px; border-radius: 10px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--font-mono); font-size: 0.82rem;
+    cursor: pointer; transition: all 0.2s; letter-spacing: 0.3px;
+  }
+  .google-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .google-btn svg { flex-shrink: 0; }
+
+  /* CONFIG BANNER */
+  .config-banner {
+    background: #1a1a0a; border: 1px solid #555500; border-radius: 10px;
+    padding: 16px 20px; margin-bottom: 20px; display: none;
+    font-size: 0.75rem; line-height: 1.7; color: #cccc44;
+  }
+  .config-banner.show { display: block; }
+  .config-banner code {
+    background: #222200; border-radius: 4px; padding: 1px 6px;
+    font-family: var(--font-mono); color: var(--accent); font-size: 0.72rem;
+  }
+  .config-banner a { color: var(--accent2); }
+
+  .app { max-width: 960px; margin: 0 auto; position: relative; z-index: 1; }
+
+  /* HEADER */
+  .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
+  .app-title { font-family: var(--font-head); font-size: 2rem; font-weight: 800; color: var(--accent); letter-spacing: -1px; line-height: 1; }
+  .week-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 12px; margin-top: 8px;
+    font-size: 0.72rem; color: var(--text2); letter-spacing: 1px; text-transform: uppercase;
+  }
+  .week-num { color: var(--accent); font-weight: 500; }
+  .date-range { color: var(--text3); }
+  .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .user-chip {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 20px;
+    padding: 4px 12px 4px 4px; font-size: 0.68rem; color: var(--text2);
+  }
+  .user-avatar {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-head); font-size: 0.65rem; font-weight: 700; color: #0e0e10;
+    overflow: hidden;
+  }
+  .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .sync-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--text3);
+    transition: background 0.3s;
+  }
+  .sync-dot.syncing { background: #ffaa44; animation: pulse 1s infinite; }
+  .sync-dot.synced { background: var(--accent); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .btn {
+    font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.5px;
+    padding: 7px 14px; border-radius: 6px; border: 1px solid var(--border);
+    cursor: pointer; transition: all 0.15s; background: var(--surface2); color: var(--text2);
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-accent { background: var(--accent); color: #0e0e10; border-color: var(--accent); font-weight: 500; }
+  .btn-accent:hover { background: #d8ff8a; color: #0e0e10; }
+  .btn-danger { border-color: var(--accent3); color: var(--accent3); }
+  .btn-danger:hover { background: var(--accent3); color: #0e0e10; }
+
+  .stats-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 18px; flex: 1; min-width: 100px; }
+  .stat-val { font-family: var(--font-head); font-size: 1.6rem; font-weight: 800; color: var(--accent); line-height: 1; }
+  .stat-label { font-size: 0.65rem; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; margin-top: 3px; }
+
+  .progress-wrap { margin-bottom: 20px; }
+  .progress-bar { height: 4px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.4s cubic-bezier(0.22,1,0.36,1); }
+  .progress-label { font-size: 0.65rem; color: var(--text3); margin-top: 5px; letter-spacing: 1px; }
+
+  .planner-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 20px; }
+  @media (max-width: 720px) { .planner-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 420px) { .planner-grid { grid-template-columns: 1fr; } }
+
+  .day-col { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.2s; }
+  .day-col.today { border-color: var(--accent); }
+  .day-col.today .day-head { background: var(--accent); }
+  .day-col.today .day-name { color: #0e0e10; }
+  .day-col.today .day-date { color: #0e0e1099; }
+  .day-col.today .day-count { color: #0e0e1077; }
+  .day-head { padding: 10px 10px 8px; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 1px; }
+  .day-name { font-family: var(--font-head); font-size: 0.75rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text2); }
+  .day-date { font-size: 0.65rem; color: var(--text3); }
+  .day-count { font-size: 0.6rem; color: var(--text3); margin-top: 3px; }
+  .tasks-list { flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 5px; min-height: 60px; }
+
+  .task-item { display: flex; align-items: flex-start; gap: 7px; padding: 6px 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: all 0.15s; }
+  .task-item:hover { border-color: var(--accent2); }
+  .task-item.done { background: var(--done); border-color: #3a5a1a; }
+  .task-item.done .task-text { color: var(--done-text); text-decoration: line-through; opacity: 0.7; }
+  .task-item.rolledover { background: var(--rollover); border-color: #1a3a5a; }
+  .task-item.rolledover .task-text { color: var(--rollover-text); }
+  .task-item.recurring { border-left: 2px solid var(--recurring-text); }
+
+  .task-check { width: 14px; height: 14px; border: 1.5px solid var(--text3); border-radius: 3px; flex-shrink: 0; margin-top: 1px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .task-item.done .task-check { background: var(--done-text); border-color: var(--done-text); }
+  .task-check svg { display: none; }
+  .task-item.done .task-check svg { display: block; }
+  .task-body { flex: 1; min-width: 0; }
+  .task-text { font-size: 0.72rem; line-height: 1.4; color: var(--text); word-break: break-word; }
+  .task-badges { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 3px; }
+  .badge { font-size: 0.52rem; border-radius: 3px; padding: 1px 4px; letter-spacing: 0.5px; white-space: nowrap; }
+  .badge-rollover { background: #1a3a5a; color: var(--rollover-text); }
+  .badge-recurring { background: var(--recurring); color: var(--recurring-text); }
+  .task-del { font-size: 0.65rem; color: var(--text3); cursor: pointer; opacity: 0; transition: opacity 0.15s; padding: 0 2px; line-height: 1; flex-shrink: 0; }
+  .task-item:hover .task-del { opacity: 1; }
+  .task-del:hover { color: var(--accent3); }
+
+  .add-task-btn { margin: 0 8px 8px; font-family: var(--font-mono); font-size: 0.65rem; color: var(--text3); background: none; border: 1px dashed var(--border); border-radius: 6px; padding: 5px 8px; cursor: pointer; text-align: left; transition: all 0.15s; letter-spacing: 0.5px; }
+  .add-task-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; display: none; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; width: 100%; max-width: 430px; animation: popIn 0.2s cubic-bezier(0.22,1,0.36,1); }
+  @keyframes popIn { from { opacity:0; transform: scale(0.95) translateY(10px); } to { opacity:1; transform: scale(1) translateY(0); } }
+  .modal-title { font-family: var(--font-head); font-size: 1rem; font-weight: 700; margin-bottom: 16px; color: var(--accent); }
+  .modal-label { font-size: 0.65rem; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 7px; }
+  .modal-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 10px 12px; font-family: var(--font-mono); font-size: 0.8rem; outline: none; transition: border-color 0.15s; margin-bottom: 16px; resize: vertical; }
+  .modal-input:focus { border-color: var(--accent); }
+
+  .day-quick-row { display: flex; gap: 6px; margin-bottom: 9px; flex-wrap: wrap; }
+  .day-quick { font-family: var(--font-mono); font-size: 0.65rem; padding: 4px 10px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); cursor: pointer; transition: all 0.12s; letter-spacing: 0.5px; }
+  .day-quick:hover { border-color: var(--text2); color: var(--text); }
+  .day-quick.q-all { border-color: var(--accent); color: var(--accent); }
+  .day-quick.q-weekday { border-color: var(--accent2); color: var(--accent2); }
+  .day-quick.q-weekend { border-color: var(--accent3); color: var(--accent3); }
+
+  .day-chips { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 16px; }
+  .day-chip { font-family: var(--font-mono); font-size: 0.68rem; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); color: var(--text3); cursor: pointer; transition: all 0.12s; user-select: none; }
+  .day-chip.selected { background: #202a0a; border-color: var(--accent); color: var(--accent); font-weight: 500; }
+  .day-chip:hover:not(.selected) { border-color: var(--text3); color: var(--text2); }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+
+  /* HISTORY */
+  .history-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; display: none; }
+  .history-panel.open { display: block; }
+  .history-title { font-family: var(--font-head); font-size: 0.9rem; font-weight: 700; color: var(--accent2); margin-bottom: 12px; }
+  .history-week { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+  .history-week-head { background: var(--surface2); padding: 8px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; }
+  .history-week-head:hover { background: #222230; }
+  .history-week-label { color: var(--text2); font-weight: 500; }
+  .history-week-stats { color: var(--text3); font-size: 0.65rem; }
+  .history-tasks { padding: 8px 12px; display: none; }
+  .history-tasks.open { display: block; }
+  .history-task-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 0.7rem; color: var(--text2); border-bottom: 1px solid var(--border); }
+  .history-task-row:last-child { border-bottom: none; }
+  .ht-day { color: var(--text3); font-size: 0.6rem; min-width: 28px; }
+  .ht-status { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .ht-done { background: var(--done-text); }
+  .ht-undone { background: var(--accent3); }
+  .ht-text { flex: 1; }
+  .no-history { color: var(--text3); font-size: 0.75rem; text-align: center; padding: 20px 0; }
+
+  .toast { position: fixed; bottom: 20px; right: 20px; z-index: 200; background: var(--surface2); border: 1px solid var(--accent); border-radius: 8px; padding: 12px 18px; font-size: 0.75rem; color: var(--accent); transform: translateY(80px); opacity: 0; transition: all 0.3s cubic-bezier(0.22,1,0.36,1); pointer-events: none; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  .loading-screen { position: fixed; inset: 0; background: var(--bg); z-index: 40; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+  .loading-screen.hidden { display: none; }
+  .loading-title { font-family: var(--font-head); font-size: 1.2rem; color: var(--accent); }
+  .loading-dots { display: flex; gap: 6px; }
+  .loading-dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: dotBounce 1.2s infinite; }
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dotBounce { 0%,80%,100%{transform:scale(0.6);opacity:0.4} 40%{transform:scale(1);opacity:1} }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+
+<!-- Loading -->
+<div class="loading-screen" id="loadingScreen">
+  <div class="loading-title">WEEKPLANNER</div>
+  <div class="loading-dots"><span></span><span></span><span></span></div>
+</div>
+
+<!-- Login -->
+<div class="login-screen hidden" id="loginScreen">
+  <div class="login-box">
+    <div class="login-title">WEEKPLANNER</div>
+    <div class="login-sub">Sign in to sync your tasks across all your devices in real time.</div>
+    <button class="google-btn" onclick="signInWithGoogle()">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/></svg>
+      Continue with Google
+    </button>
+  </div>
+</div>
+
+<!-- App -->
+<div class="app" id="appShell" style="display:none">
+  <div class="config-banner" id="configBanner">
+    &#9888; <strong>Firebase not configured.</strong> Replace the placeholder values in the <code>FIREBASE_CONFIG</code> section at the top of the &lt;script&gt; with your own project keys.<br>
+    Steps: <a href="https://console.firebase.google.com/" target="_blank">console.firebase.google.com</a> &#x2192; New Project &#x2192; Firestore Database &#x2192; Authentication &#x2192; Google provider &#x2192; Project Settings &#x2192; copy config.
+  </div>
+
+  <div class="header">
+    <div class="header-left">
+      <div class="app-title">WEEKPLANNER</div>
+      <div class="week-badge">
+        Week <span class="week-num" id="weekNum">--</span>
+        &nbsp;&#183;&nbsp;
+        <span class="date-range" id="dateRange">--</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="user-chip">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <span id="userName">--</span>
+        <div class="sync-dot" id="syncDot"></div>
+        <button class="btn" style="padding:3px 8px;font-size:0.62rem;margin-left:4px" onclick="signOut()">Sign out</button>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-accent" onclick="openModal(null)">+ Add Task</button>
+        <button class="btn" onclick="toggleHistory()">History</button>
+        <button class="btn btn-danger" onclick="clearWeek()">Clear Week</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-val" id="statTotal">0</div><div class="stat-label">Total Tasks</div></div>
+    <div class="stat"><div class="stat-val" id="statDone">0</div><div class="stat-label">Completed</div></div>
+    <div class="stat"><div class="stat-val" id="statPending">0</div><div class="stat-label">Pending</div></div>
+    <div class="stat"><div class="stat-val" id="statRollover">0</div><div class="stat-label">Rolled Over</div></div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <div class="progress-label" id="progressLabel">0% complete this week</div>
+  </div>
+
+  <div class="history-panel" id="historyPanel">
+    <div class="history-title">Previous Weeks</div>
+    <div id="historyContent"></div>
+  </div>
+
+  <div class="planner-grid" id="plannerGrid"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">+ Add Task</div>
+    <div class="modal-label">Task Description</div>
+    <textarea class="modal-input" id="modalText" rows="3" placeholder="What needs to be done?"></textarea>
+    <div class="modal-label">Add to Days</div>
+    <div class="day-quick-row">
+      <button class="day-quick q-all" onclick="selectAllDays()">All Week</button>
+      <button class="day-quick q-weekday" onclick="selectWeekdays()">Weekdays</button>
+      <button class="day-quick q-weekend" onclick="selectWeekend()">Weekend</button>
+      <button class="day-quick" onclick="clearDaySelection()">Clear</button>
+    </div>
+    <div class="day-chips" id="dayChips"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-accent" onclick="saveTask()">Add Task</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase SDKs -->
+<script type="module">
+// ============================================================
+//  FIREBASE CONFIG — replace all values below with your own
+//  from: Firebase Console > Project Settings > Your apps > SDK setup
+// ============================================================
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyAKTb8NKG9VT7dgr4l3jXg_DufsI08uURo",
+  authDomain: "weekly-tracker-d38a8.firebaseapp.com",
+  projectId: "weekly-tracker-d38a8",
+  storageBucket: "weekly-tracker-d38a8.firebasestorage.app",
+  messagingSenderId: "50715046082",
+  appId: "1:50715046082:web:6c7bef70a126f34bad0b5b",
+  measurementId: "G-761TT44W09"
+};
+// ============================================================
+
+import { initializeApp }                              from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as fbSignOut }
+                                                      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, orderBy }
+                                                      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ---- Config check ----
+const isConfigured = FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY";
+
+var app, auth, db, currentUser = null, unsubscribeSnapshot = null;
+
+if (isConfigured) {
+  app  = initializeApp(FIREBASE_CONFIG);
+  auth = getAuth(app);
+  db   = getFirestore(app);
+} else {
+  document.getElementById('loadingScreen').classList.add('hidden');
+  document.getElementById('configBanner').classList.add('show');
+  document.getElementById('appShell').style.display = 'block';
+  // Run in demo/local mode
+  runLocalMode();
+}
+
+// ---- Auth ----
+if (isConfigured) {
+  onAuthStateChanged(auth, function(user) {
+    document.getElementById('loadingScreen').classList.add('hidden');
+    if (user) {
+      currentUser = user;
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('appShell').style.display = 'block';
+      setupUserUI(user);
+      startRealtimeSync();
+    } else {
+      currentUser = null;
+      if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+      document.getElementById('appShell').style.display = 'none';
+      document.getElementById('loginScreen').classList.remove('hidden');
+    }
+  });
+}
+
+window.signInWithGoogle = async function() {
+  if (!isConfigured) return;
+  try {
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
+  } catch(e) { showToast('Sign-in failed: ' + e.message); }
+};
+
+window.signOut = async function() {
+  if (!isConfigured) return;
+  if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+  await fbSignOut(auth);
+};
+
+function setupUserUI(user) {
+  var nameEl = document.getElementById('userName');
+  var avatarEl = document.getElementById('userAvatar');
+  nameEl.textContent = user.displayName ? user.displayName.split(' ')[0] : user.email;
+  if (user.photoURL) {
+    avatarEl.innerHTML = '<img src="' + user.photoURL + '" alt="avatar">';
+  } else {
+    avatarEl.textContent = (user.displayName || user.email || '?')[0].toUpperCase();
+  }
+}
+
+// ---- Firestore paths ----
+function weekDocRef(year, week) {
+  return doc(db, 'users', currentUser.uid, 'weeks', 'week_' + year + '_' + week);
+}
+function archiveDocRef(year, week) {
+  return doc(db, 'users', currentUser.uid, 'archive', 'week_' + year + '_' + week);
+}
+function metaDocRef() {
+  return doc(db, 'users', currentUser.uid, 'meta', 'state');
+}
+
+// ---- Sync state ----
+var localData = {};      // in-memory mirror of Firestore data for current week
+var historyCache = {};   // week key -> data, loaded on demand
+
+function setSyncDot(state) {
+  var dot = document.getElementById('syncDot');
+  dot.className = 'sync-dot' + (state === 'syncing' ? ' syncing' : state === 'synced' ? ' synced' : '');
+}
+
+// ---- Real-time listener for current week ----
+function startRealtimeSync() {
+  checkWeekTransition().then(function() {
+    if (unsubscribeSnapshot) unsubscribeSnapshot();
+    unsubscribeSnapshot = onSnapshot(weekDocRef(activeWeekYear, activeWeek), function(snap) {
+      localData = snap.exists() ? (snap.data().days || {}) : {};
+      render();
+      setSyncDot('synced');
+    }, function(err) {
+      showToast('Sync error: ' + err.message);
+      setSyncDot('');
+    });
+  });
+}
+
+async function saveWeekData(days) {
+  setSyncDot('syncing');
+  try {
+    await setDoc(weekDocRef(activeWeekYear, activeWeek), { days: days, updatedAt: Date.now() });
+  } catch(e) { showToast('Save failed: ' + e.message); setSyncDot(''); }
+}
+
+async function checkWeekTransition() {
+  try {
+    var metaSnap = await getDoc(metaDocRef());
+    var lastWeekKey = metaSnap.exists() ? metaSnap.data().lastSeenWeek : null;
+    var thisWeekKey = 'week_' + currentYear + '_' + currentWeek;
+    if (lastWeekKey && lastWeekKey !== thisWeekKey) {
+      var parts = lastWeekKey.split('_');
+      var ly = parseInt(parts[1]), lw = parseInt(parts[2]);
+      var prevSnap = await getDoc(weekDocRef(ly, lw));
+      var prevDays = prevSnap.exists() ? (prevSnap.data().days || {}) : {};
+      var rolloverTasks = [];
+      DAYS.forEach(function(day) {
+        (prevDays[day] || []).forEach(function(t) {
+          if (!t.done) rolloverTasks.push(Object.assign({}, t, { rolledover: true, rolledFrom: 'Week ' + lw, done: false }));
+        });
+      });
+      if (rolloverTasks.length > 0) {
+        var curSnap = await getDoc(weekDocRef(currentYear, currentWeek));
+        var curDays = curSnap.exists() ? (curSnap.data().days || {}) : {};
+        curDays['Monday'] = rolloverTasks.concat(curDays['Monday'] || []);
+        await setDoc(weekDocRef(currentYear, currentWeek), { days: curDays, updatedAt: Date.now() });
+        showToast(rolloverTasks.length + ' task(s) rolled over from last week!');
+      }
+    }
+    await setDoc(metaDocRef(), { lastSeenWeek: thisWeekKey });
+  } catch(e) { console.warn('Week transition check failed', e); }
+}
+
+// ---- Local/demo mode (no Firebase) ----
+function runLocalMode() {
+  window.signInWithGoogle = function(){ showToast('Configure Firebase first!'); };
+  window.signOut = function(){};
+  localData = {};
+  render();
+}
+
+// ============================================================
+//  PLANNER LOGIC
+// ============================================================
+var DAYS    = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+var SHORT   = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
+var WEEKDAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+var WEEKEND  = ['Saturday','Sunday'];
+
+function getWeekNumber(d) {
+  var date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  var dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  var yearStart = new Date(Date.UTC(date.getUTCFullYear(),0,1));
+  return Math.ceil((((date - yearStart) / 86400000) + 1)/7);
+}
+function getWeekDates(year, week) {
+  var jan1 = new Date(year, 0, 1);
+  var dow = jan1.getDay() || 7;
+  var ws = new Date(jan1); ws.setDate(jan1.getDate() + (week-1)*7 - (dow-1));
+  var days = [];
+  for (var i=0;i<7;i++){var d=new Date(ws);d.setDate(ws.getDate()+i);days.push(d);}
+  return days;
+}
+function fmt(d){ return d.getDate()+' '+d.toLocaleString('default',{month:'short'}); }
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+var today        = new Date();
+var currentWeek  = getWeekNumber(today);
+var currentYear  = today.getFullYear();
+var activeWeekYear = currentYear;
+var activeWeek     = currentWeek;
+
+// ---- Render ----
+function render() {
+  var weekDates = getWeekDates(activeWeekYear, activeWeek);
+  document.getElementById('weekNum').textContent  = activeWeek;
+  document.getElementById('dateRange').textContent = fmt(weekDates[0]) + ' - ' + fmt(weekDates[6]) + ' ' + activeWeekYear;
+
+  var grid = document.getElementById('plannerGrid');
+  grid.innerHTML = '';
+  var total=0, done=0, rolloverCount=0;
+
+  DAYS.forEach(function(day, i) {
+    var tasks = (localData[day] || []);
+    var dayDate = weekDates[i];
+    var isToday = activeWeek===currentWeek && activeWeekYear===currentYear && dayDate.toDateString()===today.toDateString();
+    var doneCount = tasks.filter(function(t){return t.done;}).length;
+    total += tasks.length; done += doneCount;
+    rolloverCount += tasks.filter(function(t){return t.rolledover&&!t.done;}).length;
+
+    var col = document.createElement('div');
+    col.className = 'day-col'+(isToday?' today':'');
+
+    var tasksHtml = tasks.map(function(t,ti){
+      var isRec = t.recurringDays && t.recurringDays.length > 1;
+      var cls = 'task-item'+(t.done?' done':'')+(t.rolledover?' rolledover':'')+(isRec?' recurring':'');
+      var badges = (t.rolledover?'<span class="badge badge-rollover">from '+escHtml(t.rolledFrom||'prev')+'</span>':'')
+                 + (isRec?'<span class="badge badge-recurring">&#x21BB; '+t.recurringDays.length+' days</span>':'');
+      return '<div class="'+cls+'" onclick="toggleTask(\''+day+'\','+ti+')">'
+        +'<div class="task-check"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#0e0e10" stroke-width="2" stroke-linecap="round"/></svg></div>'
+        +'<div class="task-body"><div class="task-text">'+escHtml(t.text)+'</div>'
+        +(badges?'<div class="task-badges">'+badges+'</div>':'')
+        +'</div>'
+        +'<span class="task-del" onclick="event.stopPropagation();deleteTask(\''+day+'\','+ti+')">&#x2715;</span>'
+        +'</div>';
+    }).join('');
+
+    col.innerHTML = '<div class="day-head">'
+      +'<div class="day-name">'+SHORT[i]+'</div>'
+      +'<div class="day-date">'+fmt(dayDate)+'</div>'
+      +'<div class="day-count">'+(tasks.length?doneCount+'/'+tasks.length:'no tasks')+'</div>'
+      +'</div>'
+      +'<div class="tasks-list">'+tasksHtml+'</div>'
+      +'<button class="add-task-btn" onclick="openModal(\''+day+'\')">+ add task</button>';
+    grid.appendChild(col);
+  });
+
+  document.getElementById('statTotal').textContent   = total;
+  document.getElementById('statDone').textContent    = done;
+  document.getElementById('statPending').textContent = total-done;
+  document.getElementById('statRollover').textContent= rolloverCount;
+  var pct = total?Math.round((done/total)*100):0;
+  document.getElementById('progressFill').style.width = pct+'%';
+  document.getElementById('progressLabel').textContent = pct+'% complete this week';
+}
+
+// ---- Task actions ----
+window.toggleTask = function(day, idx) {
+  var days = JSON.parse(JSON.stringify(localData));
+  if (!days[day]) return;
+  days[day][idx].done = !days[day][idx].done;
+  localData = days;
+  render();
+  if (isConfigured) saveWeekData(days);
+};
+
+window.deleteTask = function(day, idx) {
+  var days = JSON.parse(JSON.stringify(localData));
+  if (!days[day]) return;
+  days[day].splice(idx,1);
+  localData = days;
+  render();
+  if (isConfigured) saveWeekData(days);
+};
+
+// ---- Day chips ----
+var selectedDays = [];
+function buildChips(){
+  document.getElementById('dayChips').innerHTML = DAYS.map(function(d){
+    return '<div class="day-chip'+(selectedDays.indexOf(d)>=0?' selected':'')+'" onclick="toggleChip(\''+d+'\')">'+d.slice(0,3)+'</div>';
+  }).join('');
+}
+window.toggleChip=function(d){var i=selectedDays.indexOf(d);if(i>=0)selectedDays.splice(i,1);else selectedDays.push(d);buildChips();};
+window.selectAllDays=function(){selectedDays=DAYS.slice();buildChips();};
+window.selectWeekdays=function(){selectedDays=WEEKDAYS.slice();buildChips();};
+window.selectWeekend=function(){selectedDays=WEEKEND.slice();buildChips();};
+window.clearDaySelection=function(){selectedDays=[];buildChips();};
+
+// ---- Modal ----
+window.openModal = function(day) {
+  selectedDays = day?[day]:['Monday'];
+  buildChips();
+  document.getElementById('modalText').value='';
+  document.getElementById('modalTitle').textContent='+ Add Task';
+  document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(function(){document.getElementById('modalText').focus();},100);
+};
+window.closeModal = function(){ document.getElementById('modalOverlay').classList.remove('open'); };
+
+window.saveTask = function() {
+  var text = document.getElementById('modalText').value.trim();
+  if (!text){ document.getElementById('modalText').focus(); return; }
+  if (!selectedDays.length){ showToast('Select at least one day!'); return; }
+  var days = JSON.parse(JSON.stringify(localData));
+  var id = Date.now();
+  var sorted = DAYS.filter(function(d){ return selectedDays.indexOf(d)>=0; });
+  sorted.forEach(function(day){
+    if (!days[day]) days[day]=[];
+    days[day].push({text:text,done:false,rolledover:false,id:id,recurringDays:sorted});
+  });
+  localData = days;
+  closeModal();
+  render();
+  if (isConfigured) saveWeekData(days);
+  var label = sorted.length===7?'all 7 days':sorted.length===1?sorted[0]:sorted.length+' days';
+  showToast('Task added to '+label+'!');
+};
+
+document.getElementById('modalOverlay').addEventListener('click',function(e){if(e.target===e.currentTarget)closeModal();});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape')closeModal();
+  if(e.key==='Enter'&&e.ctrlKey&&document.getElementById('modalOverlay').classList.contains('open'))saveTask();
+});
+
+// ---- Clear week ----
+window.clearWeek = async function() {
+  var hasData = DAYS.some(function(d){return(localData[d]||[]).length>0;});
+  if (!hasData){ showToast('Nothing to clear.'); return; }
+  if (isConfigured) {
+    try {
+      await setDoc(archiveDocRef(activeWeekYear, activeWeek), { days: localData, archivedAt: Date.now() });
+      await saveWeekData({});
+    } catch(e){ showToast('Error: '+e.message); return; }
+  }
+  localData = {};
+  render();
+  showToast('Week cleared. Data saved in history.');
+};
+
+// ---- History ----
+window.toggleHistory = function() {
+  var panel = document.getElementById('historyPanel');
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open')) loadAndRenderHistory();
+};
+
+async function loadAndRenderHistory() {
+  var content = document.getElementById('historyContent');
+  content.innerHTML = '<div class="no-history">Loading...</div>';
+  if (!isConfigured) { content.innerHTML = '<div class="no-history">No Firebase — history unavailable in demo mode.</div>'; return; }
+  try {
+    // Get all archive docs
+    var archiveColl = collection(db, 'users', currentUser.uid, 'archive');
+    var archiveSnap = await getDoc(doc(db,'users',currentUser.uid)); // just to check exists
+    // Fetch archive collection manually
+    var { getDocs } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    var archiveDocs = await getDocs(archiveColl);
+    var weeks = [];
+    archiveDocs.forEach(function(d){ weeks.push({key:d.id, data:d.data()}); });
+    // Also check non-archived past weeks
+    var weeksColl = collection(db, 'users', currentUser.uid, 'weeks');
+    var weekDocs = await getDocs(weeksColl);
+    var currentKey = 'week_'+activeWeekYear+'_'+activeWeek;
+    weekDocs.forEach(function(d){
+      if (d.id!==currentKey && !weeks.find(function(w){return w.key===d.id;})) {
+        weeks.push({key:d.id,data:d.data()});
+      }
+    });
+    weeks.sort(function(a,b){return b.key.localeCompare(a.key);});
+    var past = weeks.filter(function(w){
+      var parts=w.key.split('_'); var y=parseInt(parts[1]),wn=parseInt(parts[2]);
+      return y<currentYear||(y===currentYear&&wn<currentWeek);
+    });
+    if (!past.length){ content.innerHTML='<div class="no-history">No previous weeks found.</div>'; return; }
+    content.innerHTML = past.map(function(w){
+      var parts=w.key.split('_'); var y=parseInt(parts[1]),wn=parseInt(parts[2]);
+      var days = w.data.days||{};
+      var allTasks=[];
+      DAYS.forEach(function(d){(days[d]||[]).forEach(function(t){allTasks.push(Object.assign({},t,{day:d.slice(0,3)}));});});
+      var doneCount=allTasks.filter(function(t){return t.done;}).length;
+      var dates=getWeekDates(y,wn);
+      var label='Week '+wn+', '+y+'  '+fmt(dates[0])+' to '+fmt(dates[6]);
+      var sk=w.key.replace(/[^a-z0-9_]/gi,'_');
+      return '<div class="history-week">'
+        +'<div class="history-week-head" onclick="toggleHistoryWeek(\''+sk+'\')">'
+        +'<span class="history-week-label">'+escHtml(label)+'</span>'
+        +'<span class="history-week-stats">'+doneCount+'/'+allTasks.length+' done</span>'
+        +'</div>'
+        +'<div class="history-tasks" id="hw_'+sk+'">'
+        +(allTasks.length?allTasks.map(function(t){
+          return '<div class="history-task-row">'
+            +'<span class="ht-day">'+t.day+'</span>'
+            +'<span class="ht-status '+(t.done?'ht-done':'ht-undone')+'"></span>'
+            +'<span class="ht-text">'+escHtml(t.text)+'</span>'
+            +'</div>';
+        }).join(''):'<div style="color:var(--text3);font-size:0.7rem;padding:8px 0">No tasks recorded</div>')
+        +'</div></div>';
+    }).join('');
+  } catch(e){ content.innerHTML='<div class="no-history">Error loading history: '+escHtml(e.message)+'</div>'; }
+}
+
+window.toggleHistoryWeek=function(key){var el=document.getElementById('hw_'+key);if(el)el.classList.toggle('open');};
+
+function showToast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');},2800);
+}
+
+// expose showToast globally
+window.showToast = showToast;
+</script>
+</body>
+</html>
